@@ -282,8 +282,10 @@ async function fileIssue(j, verdict, text) {
     body: JSON.stringify({ title: icon + ' ' + (j.company || '?') + ' – ' + (j.role || '?'), body, labels: ['feedback'] }),
   });
   if (res.status === 401 || res.status === 403 || res.status === 404) {
+    let why = '';
+    try { why = (await res.json()).message || ''; } catch (e) { /* no body */ }
     store.del(TOKEN_STORE);
-    throw new Error('GitHub refused the key (' + res.status + '). Check it has Issues: Read and write on job-hunt-dashboard, then paste it again.');
+    throw new Error('GitHub refused the key (' + res.status + (why ? ': ' + why : '') + '). Give it Issues: Read and write on job-hunt-dashboard, then paste it again.');
   }
   if (!res.ok) throw new Error('GitHub error ' + res.status);
   return res.json();

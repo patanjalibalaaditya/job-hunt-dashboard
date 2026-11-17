@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Remote Job Hunt</title>
+<link rel="icon" href="data:,">
+<style>
+  :root {
+    --bg: #faf9f7; --panel: #ffffff; --fg: #1f1e1c; --muted: #6b6862; --line: #e6e3de;
+    --accent: #2f6fdf; --accent-fg: #ffffff; --ok: #1f8a4c; --warn: #b26b00; --bar: #2f6fdf; --goal: #b26b00;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #161615; --panel: #1f1f1d; --fg: #ecebe8; --muted: #a29f99; --line: #33322f;
+      --accent: #6a9cf5; --accent-fg: #0d1526; --ok: #4cc27f; --warn: #e3a440; --bar: #6a9cf5; --goal: #e3a440; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 18px 60px; display: flex; flex-direction: column; gap: 22px; }
+  h1 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; font-size: 2rem; margin: 0; }
+  h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 4px; }
+  .sub, .cap, .muted { color: var(--muted); }
+  .sub { margin: 4px 0 0; }
+  .cap { font-size: 0.85rem; margin: 0 0 14px; }
+  .take { margin: 10px 0 0; max-width: 60rem; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; min-width: 0; }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
+  .tile-label { font-size: 0.8rem; color: var(--muted); }
+  .tile-value { font-family: Georgia, serif; font-size: 2rem; line-height: 1.2; margin-top: 4px; font-variant-numeric: tabular-nums; }
+  .tile-note { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+  .chart { position: relative; min-height: 120px; }
+  .chart svg { display: block; width: 100%; }
+  .chart text { fill: var(--muted); font-size: 12px; }
+  .empty { color: var(--muted); font-size: 0.9rem; padding: 10px 0; }
+  .hbar { display: grid; grid-template-columns: minmax(90px, max-content) 1fr; gap: 6px 10px; align-items: center; font-size: 0.85rem; }
+  .hbar .lab { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hbar .track { display: flex; align-items: center; gap: 6px; }
+  .hbar .fill { height: 20px; background: var(--bar); border-radius: 3px; min-width: 2px; }
+  .hbar .num { font-variant-numeric: tabular-nums; }
+  .tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); box-shadow: 0 4px 14px rgba(0,0,0,.15); border-radius: 6px; padding: 4px 8px; font-size: 0.8rem; white-space: nowrap; display: none; z-index: 3; }
+  .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+  .controls input, .controls select { font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; }
+  .controls input { flex: 1 1 220px; }
+  .tablewrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th { text-align: left; font-size: 0.78rem; font-weight: 600; color: var(--muted); padding: 8px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; cursor: pointer; user-select: none; }
+  td { padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .role { font-weight: 600; }
+  .company { color: var(--muted); font-size: 0.88rem; }
+  .tag { display: inline-block; font-size: 0.75rem; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); margin-top: 3px; }
+  .tag.stretch { color: var(--warn); border-color: var(--warn); }
+  .score-hi { color: var(--ok); font-weight: 700; }
+  a.apply { display: inline-block; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; font-size: 0.85rem; padding: 6px 12px; border-radius: 8px; white-space: nowrap; }
+  a.apply:hover { filter: brightness(1.08); }
+  footer { color: var(--muted); font-size: 0.8rem; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Remote Job Hunt</h1>
+    <p class="sub">Nightly search for remote backend roles outside India that are open to candidates in India and pay $20/hour or more.</p>
+    <p class="take" id="takeaway">Loading…</p>
+  </header>
+
+  <section class="tiles">
+    <div class="card"><div class="tile-label">Nights searched</div><div class="tile-value" id="k-nights">—</div><div class="tile-note">All runs so far</div></div>
+    <div class="card"><div class="tile-label">Matching jobs found</div><div class="tile-value" id="k-jobs">—</div><div class="tile-note">Passed every filter, scored 6+</div></div>
+    <div class="card"><div class="tile-label">Matches per night</div><div class="tile-value" id="k-avg">—</div><div class="tile-note">Goal: 20 a night</div></div>
+    <div class="card"><div class="tile-label">Average fit score</div><div class="tile-value" id="k-score">—</div><div class="tile-note">Out of 10</div></div>
+    <div class="card"><div class="tile-label">Median listed pay</div><div class="tile-value" id="k-pay">—</div><div class="tile-note">USD per hour, where listed</div></div>
+  </section>
+
+  <section class="card" id="jobs">
+    <h2>Jobs to apply to</h2>
+    <p class="cap">Every matching job found so far. Click a column to sort. "Stretch" roles ask for a bit more experience than you have.</p>
+    <div class="controls">
+      <input id="q" type="search" placeholder="Search company, role or location…" aria-label="Search jobs">
+      <select id="f-niche" aria-label="Niche"><option value="">All niches</option></select>
+      <select id="f-score" aria-label="Minimum score">
+        <option value="0">Any score</option><option value="7">Score 7+</option><option value="8">Score 8+</option><option value="9">Score 9+</option>
+      </select>
+      <select id="f-date" aria-label="Found">
+        <option value="">Any date</option><option value="1">Last night</option><option value="7">Last 7 days</option><option value="30">Last 30 days</option>
+      </select>
+    </div>
+    <p class="cap" id="count"></p>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th data-k="role">Role</th>
+          <th data-k="pay_usd_hr" class="num">Pay ($/hr)</th>
+          <th data-k="score" class="num">Score</th>
+          <th data-k="location_rule">Location</th>
+          <th data-k="niche">Niche</th>
+          <th data-k="source">Source</th>
+          <th data-k="run_date">Found</th>
+          <th>Apply</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Matching jobs per night</h2>
+    <p class="cap">New matches each night. The dashed line is the goal of 20.</p>
+    <div class="chart" id="c-nightly"></div>
+  </section>
+
+  <div class="grid">
+    <section class="card"><h2>Why postings were skipped</h2><p class="cap">Rejected postings by the filter they failed, all runs.</p><div class="chart" id="c-skip"></div></section>
+    <section class="card"><h2>Where matches came from</h2><p class="cap">Matching jobs by job board or careers page.</p><div class="chart" id="c-source"></div></section>
+    <section class="card"><h2>Matches by niche</h2><p class="cap">Kind of backend work.</p><div class="chart" id="c-niche"></div></section>
+    <section class="card"><h2>Fit scores</h2><p class="cap">How many matches got each score.</p><div class="chart" id="c-score"></div></section>
+  </div>
+
+  <footer id="updated"></footer>
+</div>
+
+<script>
+const GOAL = 20;
+const state = { jobs: [], runs: [], sortKey: 'run_date', sortDir: -1 };
+const $ = (s) => document.querySelector(s);
+const num = (v) => (v === null || v === undefined || v === '' || !isFinite(+v)) ? null : +v;
+const fmt = (v, d = 0) => num(v) === null ? '—' : (+v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+const fmtDate = (s) => { const d = new Date(String(s) + 'T00:00:00Z'); return isNaN(d) ? String(s || '—') : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }); };
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text !== undefined) e.textContent = text; return e; };
+const countBy = (rows, key, fallback) => { const m = new Map(); rows.forEach((r) => { const k = r[key] || fallback; m.set(k, (m.get(k) || 0) + 1); }); return [...m].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value); };
+
+async function load(name) {
+  const res = await fetch('data/' + name + '?t=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error(name + ': ' + res.status);
+  return res.json();
+}
+
+function hbar(id, rows, emptyText) {
+  const box = $(id); box.replaceChildren();
+  if (!rows.length || rows.every((r) => !r.value)) { box.append(el('div', 'empty', emptyText)); return; }
+  const max = Math.max(...rows.map((r) => r.value)) || 1;
+  const g = el('div', 'hbar');
+  rows.forEach((r) => {
+    const lab = el('div', 'lab', String(r.label)); lab.title = String(r.label);
+    const track = el('div', 'track');
+    const fill = el('div', 'fill'); fill.style.width = (r.value / max * 85) + '%';
+    if (!r.value) fill.style.minWidth = '0';
+    track.append(fill, el('span', 'num', fmt(r.value)));
+    g.append(lab, track);
+  });
+  box.append(g);
+}
+
+function nightly() {
+  const box = $('#c-nightly'); box.replaceChildren();
+  const rows = state.runs.slice().sort((a, b) => String(a.run_date).localeCompare(String(b.run_date)));
+  if (!rows.length) { box.append(el('div', 'empty', 'No runs yet. The first nightly search runs at 11:07 PM IST.')); return; }
+  const W = Math.max(280, box.clientWidth), H = 220, L = 32, B = 26, T = 22, R = 6;
+  const max = Math.max(GOAL, ...rows.map((r) => num(r.qualified) || 0));
+  const top = Math.ceil(max / 5) * 5;
+  const y = (v) => T + (H - T - B) * (1 - v / top);
+  const bw = (W - L - R) / rows.length;
+  const ns = 'http://www.w3.org/2000/svg';
+  const svg = document.createElementNS(ns, 'svg');
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.setAttribute('height', H);
+  svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', 'Matching jobs found per night');
+  const add = (tag, attrs, text) => { const n = document.createElementNS(ns, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text !== undefined) n.textContent = text; svg.appendChild(n); return n; };
+  [0, top / 2, top].forEach((v) => {
+    add('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: 'currentColor', 'stroke-opacity': 0.12 });
+    add('text', { x: L - 6, y: y(v) + 4, 'text-anchor': 'end' }, fmt(v));
+  });
+  const tip = el('div', 'tip'); box.append(tip);
+  const every = Math.ceil(rows.length / Math.max(1, Math.floor((W - L) / 54)));
+  rows.forEach((r, i) => {
+    const q = num(r.qualified) || 0;
+    const x = L + i * bw + bw * 0.15, w = bw * 0.7;
+    const rect = add('rect', { x, y: y(q), width: w, height: y(0) - y(q), rx: 2, fill: 'var(--bar)' });
+    rect.addEventListener('pointermove', (ev) => {
+      tip.textContent = `${fmtDate(r.run_date)}: ${fmt(q)} matches of ${fmt(r.reviewed)} reviewed`;
+      tip.style.display = 'block';
+      const b = box.getBoundingClientRect();
+      let tx = ev.clientX - b.left + 12; if (tx + tip.offsetWidth > b.width) tx = ev.clientX - b.left - tip.offsetWidth - 12;
+      tip.style.left = Math.max(0, tx) + 'px'; tip.style.top = (ev.clientY - b.top + 12) + 'px';
+    });
+    rect.addEventListener('pointerleave', () => { tip.style.display = 'none'; });
+    if (i % every === 0) add('text', { x: x + w / 2, y: H - 8, 'text-anchor': 'middle' }, fmtDate(r.run_date));
+  });
+  add('line', { x1: L, x2: W - R, y1: y(GOAL), y2: y(GOAL), stroke: 'var(--goal)', 'stroke-dasharray': '5 4' });
+  add('text', { x: W - R, y: y(GOAL) - 5, 'text-anchor': 'end' }, 'Goal: ' + GOAL);
+  box.prepend(svg);
+}
+
+function summary() {
+  const { jobs, runs } = state;
+  const scores = jobs.map((j) => num(j.score)).filter((v) => v !== null);
+  const pays = jobs.map((j) => num(j.pay_usd_hr)).filter((v) => v !== null).sort((a, b) => a - b);
+  const mid = Math.floor(pays.length / 2);
+  const median = pays.length ? (pays.length % 2 ? pays[mid] : (pays[mid - 1] + pays[mid]) / 2) : null;
+  $('#k-nights').textContent = fmt(runs.length);
+  $('#k-jobs').textContent = fmt(jobs.length);
+  $('#k-avg').textContent = runs.length ? fmt(jobs.length / runs.length, 1) : '—';
+  $('#k-score').textContent = scores.length ? fmt(scores.reduce((a, b) => a + b, 0) / scores.length, 1) : '—';
+  $('#k-pay').textContent = median === null ? '—' : '$' + fmt(median);
+  if (!runs.length) {
+    $('#takeaway').textContent = 'No runs yet. The first nightly search runs at 11:07 PM IST, and this page fills in after each run.';
+  } else {
+    const last = runs.slice().sort((a, b) => String(b.run_date).localeCompare(String(a.run_date)))[0];
+    const top = scores.filter((s) => s >= 9).length;
+    $('#takeaway').textContent = `Across ${fmt(runs.length)} nights the agent found ${fmt(jobs.length)} matching jobs; ${fmt(top)} scored 9 or higher. Last night (${fmtDate(last.run_date)}) it found ${fmt(last.qualified)}, against a goal of ${GOAL}.`;
+  }
+  const sum = (k) => runs.reduce((a, r) => a + (num(r[k]) || 0), 0);
+  hbar('#c-skip', [
+    { label: 'Not open to India', value: sum('skipped_location') },
+    { label: 'Pay under $20/hr', value: sum('skipped_pay') },
+    { label: 'Experience too high', value: sum('skipped_experience') },
+    { label: 'Other', value: sum('skipped_other') },
+  ].sort((a, b) => b.value - a.value), 'Nothing skipped yet.');
+  hbar('#c-source', countBy(jobs, 'source', 'Unknown'), 'No matching jobs yet.');
+  hbar('#c-niche', countBy(jobs, 'niche', 'Other'), 'No matching jobs yet.');
+  hbar('#c-score', [10, 9, 8, 7, 6].map((s) => ({ label: 'Score ' + s, value: jobs.filter((j) => num(j.score) === s).length })), 'No matching jobs yet.');
+  nightly();
+  const niches = [...new Set(jobs.map((j) => j.niche).filter(Boolean))].sort();
+  const sel = $('#f-niche'); const cur = sel.value;
+  sel.replaceChildren(new Option('All niches', ''), ...niches.map((n) => new Option(n, n)));
+  sel.value = niches.includes(cur) ? cur : '';
+}
+
+function table() {
+  const q = $('#q').value.trim().toLowerCase();
+  const niche = $('#f-niche').value;
+  const minScore = +$('#f-score').value;
+  const days = +$('#f-date').value;
+  const latest = state.runs.map((r) => String(r.run_date)).sort().pop();
+  let cutoff = null;
+  if (days && latest) { const d = new Date(latest + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() - (days - 1)); cutoff = d.toISOString().slice(0, 10); }
+  const rows = state.jobs.filter((j) =>
+    (!q || [j.company, j.role, j.location_rule, j.source, j.niche].join(' ').toLowerCase().includes(q)) &&
+    (!niche || j.niche === niche) &&
+    ((num(j.score) || 0) >= minScore) &&
+    (!cutoff || String(j.run_date) >= cutoff));
+  const k = state.sortKey, dir = state.sortDir;
+  rows.sort((a, b) => {
+    const av = a[k], bv = b[k];
+    const an = num(av), bn = num(bv);
+    let c = (an !== null && bn !== null) ? an - bn : String(av ?? '').localeCompare(String(bv ?? ''));
+    if (an === null && bn !== null) c = -1; if (bn === null && an !== null) c = 1;
+    return c * dir || (num(b.score) || 0) - (num(a.score) || 0);
+  });
+  $('#count').textContent = `${fmt(rows.length)} of ${fmt(state.jobs.length)} jobs shown`;
+  const tb = $('#rows'); tb.replaceChildren();
+  if (!rows.length) { const tr = el('tr'); const td = el('td', 'empty', state.jobs.length ? 'No jobs match these filters.' : 'No matching jobs yet.'); td.colSpan = 8; tr.append(td); tb.append(tr); return; }
+  rows.forEach((j) => {
+    const tr = el('tr');
+    const c1 = el('td'); c1.append(el('div', 'role', j.role || '—'), el('div', 'company', j.company || '—'));
+    if (j.stretch) c1.append(el('span', 'tag stretch', 'Stretch'));
+    const pay = el('td', 'num', num(j.pay_usd_hr) === null ? 'Not listed' : '$' + fmt(j.pay_usd_hr));
+    const sc = el('td', 'num' + ((num(j.score) || 0) >= 9 ? ' score-hi' : ''), fmt(j.score));
+    const loc = el('td', '', j.location_rule || '—');
+    const ni = el('td'); ni.append(el('span', 'tag', j.niche || 'Other'));
+    const src = el('td', 'muted', j.source || '—');
+    const dt = el('td', 'muted', fmtDate(j.run_date));
+    const ap = el('td');
+    const url = String(j.link || '');
+    if (/^https?:\/\//i.test(url)) { const a = el('a', 'apply', 'Apply →'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; ap.append(a); }
+    else ap.textContent = '—';
+    tr.append(c1, pay, sc, loc, ni, src, dt, ap);
+    tb.append(tr);
+  });
+}
+
+document.querySelectorAll('th[data-k]').forEach((th) => th.addEventListener('click', () => {
+  const k = th.dataset.k;
+  state.sortDir = state.sortKey === k ? -state.sortDir : (k === 'role' || k === 'location_rule' || k === 'niche' || k === 'source' ? 1 : -1);
+  state.sortKey = k; table();
+}));
+['#q', '#f-niche', '#f-score', '#f-date'].forEach((s) => $(s).addEventListener('input', table));
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(nightly, 150); });
+
+Promise.all([load('jobs.json'), load('runs.json')]).then(([jobs, runs]) => {
+  state.jobs = Array.isArray(jobs) ? jobs : (jobs.rows || []);
+  state.runs = Array.isArray(runs) ? runs : (runs.rows || []);
+  summary(); table();
+  const last = state.runs.map((r) => r.run_date).sort().pop();
+  $('#updated').textContent = last ? `Data last updated by the nightly search on ${fmtDate(last)}.` : 'Waiting for the first nightly run.';
+}).catch((e) => {
+  $('#takeaway').textContent = 'Could not load the job data (' + e.message + ').';
+});
+</script>
+</body>
+</html>

@@ -60,9 +60,14 @@
   .fbbtn { font: inherit; font-size: 0.85rem; color: var(--fg); white-space: nowrap; cursor: pointer; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
   .fbbtn:hover { border-color: var(--accent); }
   tr.cmtrow td { background: var(--bg); padding: 14px; }
-  .cmthead .cap { margin: 4px 0 8px; }
-  .cmtbox { max-width: 760px; min-height: 120px; }
-  .cmtbox .utterances { max-width: 100%; }
+  .seg { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+  .segbtn { font: inherit; font-size: 0.85rem; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; cursor: pointer; }
+  .segbtn.on { border-color: var(--accent); background: var(--accent); color: var(--accent-fg); }
+  .cmttext { display: block; width: 100%; max-width: 760px; font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px; resize: vertical; }
+  .cmttext:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .cmtactions { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  button.sendbtn { border: 0; cursor: pointer; font: inherit; font-weight: 600; font-size: 0.9rem; background: var(--accent); color: var(--accent-fg); padding: 8px 16px; border-radius: 8px; }
+  button.sendbtn:disabled { opacity: .6; cursor: default; }
   .fbnote { font-size: 0.78rem; color: var(--muted); margin-top: 5px; max-width: 220px; }
   .fbnote.up { color: var(--ok); } .fbnote.down { color: var(--warn); }
   tr.disliked td { opacity: 0.55; }
@@ -251,28 +256,66 @@ function summary() {
   sel.value = niches.includes(cur) ? cur : '';
 }
 
-// Inline comment box (utterances): one GitHub issue per job, labeled "feedback".
-// Only one box is open at a time, because utterances sizes every open box from the same messages.
+// Inline feedback box. Submitting sends it to a small relay (FEEDBACK_URL) that files it as a
+// GitHub issue labeled "feedback". Until the relay is set up, it opens GitHub with the text prefilled.
+const FEEDBACK_URL = '';
+const KEY_STORE = 'jh-feedback-key';
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } },
+  del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } },
+};
+function issueUrl(j, verdict, text) {
+  const icon = verdict === 'like' ? '👍' : verdict === 'dislike' ? '👎' : '💬';
+  const body = ['Job ID: ' + j.id, 'Verdict: ' + verdict, 'Company: ' + (j.company || ''), 'Role: ' + (j.role || ''), 'Link: ' + (j.link || ''), '', '## Your comment', text].join('\n');
+  const q = new URLSearchParams({ title: icon + ' ' + (j.company || '?') + ' – ' + (j.role || '?'), body, labels: 'feedback' });
+  return 'https://github.com/' + REPO + '/issues/new?' + q.toString();
+}
 let openPanel = null;
 function toggleComments(tr, j, btn) {
   const wasOpen = openPanel && openPanel.tr === tr;
   if (openPanel) { openPanel.row.remove(); openPanel.btn.setAttribute('aria-expanded', 'false'); openPanel.btn.textContent = '💬 Comment'; openPanel = null; }
   if (wasOpen) return;
   const row = el('tr', 'cmtrow'); const td = el('td'); td.colSpan = 9;
-  const head = el('div', 'cmthead');
-  head.append(el('strong', '', 'Feedback on ' + (j.company || '') + ' – ' + (j.role || '')));
-  head.append(el('div', 'cap', 'Write what you think, for example "👎 Python-first role, I want Go" or "👍 more voice AI startups like this". The next nightly search reads it and learns. The first time, click "Sign in with GitHub" in the box below.'));
-  const box = el('div', 'cmtbox');
-  td.append(head, box); row.append(td); tr.after(row);
-  const s = document.createElement('script');
-  s.src = 'https://utteranc.es/client.js';
-  s.setAttribute('repo', REPO);
-  s.setAttribute('issue-term', 'Feedback: ' + (j.company || '?') + ' – ' + (j.role || '?') + ' [' + j.id + ']');
-  s.setAttribute('label', 'feedback');
-  s.setAttribute('theme', 'preferred-color-scheme');
-  s.setAttribute('crossorigin', 'anonymous');
-  s.async = true;
-  box.append(s);
+  td.append(el('strong', '', 'Feedback on ' + (j.company || '') + ' – ' + (j.role || '')));
+  let verdict = 'note';
+  const seg = el('div', 'seg');
+  [['like', '👍 More like this'], ['dislike', '👎 Not for me'], ['note', '💬 Just a note']].forEach(([v, label]) => {
+    const b = el('button', 'segbtn' + (v === verdict ? ' on' : ''), label); b.type = 'button';
+    b.addEventListener('click', () => { verdict = v; seg.querySelectorAll('.segbtn').forEach((x) => x.classList.toggle('on', x === b)); });
+    seg.append(b);
+  });
+  const ta = el('textarea', 'cmttext'); ta.rows = 3;
+  ta.placeholder = 'e.g. "Python-first role, I want Go" or "love voice AI startups like this"';
+  const actions = el('div', 'cmtactions');
+  const send = el('button', 'apply sendbtn', 'Submit feedback'); send.type = 'button';
+  const status = el('span', 'cap cmtstatus', '');
+  actions.append(send, status);
+  td.append(seg, ta, actions); row.append(td); tr.after(row);
+  ta.focus();
+  send.addEventListener('click', async () => {
+    const text = ta.value.trim();
+    if (!text) { status.textContent = 'Write something first.'; ta.focus(); return; }
+    if (!FEEDBACK_URL) {
+      window.open(issueUrl(j, verdict, text), '_blank', 'noopener');
+      status.textContent = 'Opened GitHub with your comment. Click "Create" there to send it.';
+      return;
+    }
+    let key = store.get(KEY_STORE);
+    if (!key) { key = (window.prompt('Enter your feedback key (asked once on this device):') || '').trim(); if (!key) return; }
+    send.disabled = true; status.textContent = 'Sending…';
+    try {
+      const res = await fetch(FEEDBACK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key, verdict, comment: text, job: { id: j.id, company: j.company, role: j.role, link: j.link } }) });
+      if (res.status === 401) { store.del(KEY_STORE); throw new Error('wrong feedback key, try again'); }
+      if (!res.ok) throw new Error((await res.text()) || ('error ' + res.status));
+      store.set(KEY_STORE, key);
+      ta.value = ''; ta.disabled = true; send.hidden = true;
+      status.textContent = 'Sent ✓ The next nightly search will learn from it.';
+    } catch (e) {
+      status.textContent = 'Could not send: ' + e.message;
+    } finally { send.disabled = false; }
+  });
   btn.setAttribute('aria-expanded', 'true'); btn.textContent = '✕ Close';
   openPanel = { tr, row, btn };
 }

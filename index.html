@@ -57,8 +57,12 @@
   a.apply:hover { filter: brightness(1.08); }
   footer { color: var(--muted); font-size: 0.8rem; }
   .fb { display: flex; gap: 6px; }
-  a.fbbtn { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 30px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; font-size: 0.95rem; background: var(--bg); }
-  a.fbbtn:hover { border-color: var(--accent); }
+  .fbbtn { font: inherit; font-size: 0.85rem; color: var(--fg); white-space: nowrap; cursor: pointer; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); }
+  .fbbtn:hover { border-color: var(--accent); }
+  tr.cmtrow td { background: var(--bg); padding: 14px; }
+  .cmthead .cap { margin: 4px 0 8px; }
+  .cmtbox { max-width: 760px; min-height: 120px; }
+  .cmtbox .utterances { max-width: 100%; }
   .fbnote { font-size: 0.78rem; color: var(--muted); margin-top: 5px; max-width: 220px; }
   .fbnote.up { color: var(--ok); } .fbnote.down { color: var(--warn); }
   tr.disliked td { opacity: 0.55; }
@@ -117,7 +121,7 @@
 
   <section class="card" id="learned">
     <h2>What the agent has learned from your feedback</h2>
-    <p class="cap">Use 👍 or 👎 on any job to tell the agent what you think. Before each nightly search it reads your comments, turns them into rules like these, and uses them to choose and score jobs. Comments you leave after a run are picked up by the next one.</p>
+    <p class="cap">Click 💬 Comment on any job and write what you think. Before each nightly search it reads your comments, turns them into rules like these, and uses them to choose and score jobs. Comments you leave after a run are picked up by the next one.</p>
     <ul class="rules" id="rules"></ul>
     <p class="cap" id="fb-pending"></p>
   </section>
@@ -143,28 +147,7 @@ const GOAL = 20;
 const REPO = 'patanjalibalaaditya/job-hunt-dashboard';
 const state = { jobs: [], runs: [], feedback: [], prefs: { rules: [] }, sortKey: 'run_date', sortDir: -1 };
 
-// Build a prefilled GitHub issue link for feedback on one job.
-function feedbackUrl(j, verdict) {
-  const up = verdict === 'up';
-  const title = (up ? '👍 ' : '👎 ') + (j.company || '?') + ' – ' + (j.role || '?');
-  const body = [
-    'Job ID: ' + j.id,
-    'Verdict: ' + (up ? 'like' : 'dislike'),
-    'Company: ' + (j.company || ''),
-    'Role: ' + (j.role || ''),
-    'Niche: ' + (j.niche || ''),
-    'Location rule: ' + (j.location_rule || ''),
-    'Pay ($/hr): ' + (num(j.pay_usd_hr) === null ? 'not listed' : j.pay_usd_hr),
-    'Link: ' + (j.link || ''),
-    '',
-    '## Your comment',
-    up ? '(What do you like about this one? e.g. "great stack match, want more voice AI startups like this")'
-       : '(Why is this not for you? e.g. "too senior", "hate PHP", "they only hire via agencies", "not really open to India")',
-    '',
-  ].join('\n');
-  const q = new URLSearchParams({ title, body, labels: 'feedback' });
-  return 'https://github.com/' + REPO + '/issues/new?' + q.toString();
-}
+
 const $ = (s) => document.querySelector(s);
 const num = (v) => (v === null || v === undefined || v === '' || !isFinite(+v)) ? null : +v;
 const fmt = (v, d = 0) => num(v) === null ? '—' : (+v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -268,7 +251,34 @@ function summary() {
   sel.value = niches.includes(cur) ? cur : '';
 }
 
+// Inline comment box (utterances): one GitHub issue per job, labeled "feedback".
+// Only one box is open at a time, because utterances sizes every open box from the same messages.
+let openPanel = null;
+function toggleComments(tr, j, btn) {
+  const wasOpen = openPanel && openPanel.tr === tr;
+  if (openPanel) { openPanel.row.remove(); openPanel.btn.setAttribute('aria-expanded', 'false'); openPanel.btn.textContent = '💬 Comment'; openPanel = null; }
+  if (wasOpen) return;
+  const row = el('tr', 'cmtrow'); const td = el('td'); td.colSpan = 9;
+  const head = el('div', 'cmthead');
+  head.append(el('strong', '', 'Feedback on ' + (j.company || '') + ' – ' + (j.role || '')));
+  head.append(el('div', 'cap', 'Write what you think, for example "👎 Python-first role, I want Go" or "👍 more voice AI startups like this". The next nightly search reads it and learns. The first time, click "Sign in with GitHub" in the box below.'));
+  const box = el('div', 'cmtbox');
+  td.append(head, box); row.append(td); tr.after(row);
+  const s = document.createElement('script');
+  s.src = 'https://utteranc.es/client.js';
+  s.setAttribute('repo', REPO);
+  s.setAttribute('issue-term', 'Feedback: ' + (j.company || '?') + ' – ' + (j.role || '?') + ' [' + j.id + ']');
+  s.setAttribute('label', 'feedback');
+  s.setAttribute('theme', 'preferred-color-scheme');
+  s.setAttribute('crossorigin', 'anonymous');
+  s.async = true;
+  box.append(s);
+  btn.setAttribute('aria-expanded', 'true'); btn.textContent = '✕ Close';
+  openPanel = { tr, row, btn };
+}
+
 function table() {
+  openPanel = null;
   const q = $('#q').value.trim().toLowerCase();
   const niche = $('#f-niche').value;
   const minScore = +$('#f-score').value;
@@ -307,17 +317,16 @@ function table() {
     if (/^https?:\/\//i.test(url)) { const a = el('a', 'apply', 'Apply →'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; ap.append(a); }
     else ap.textContent = '—';
     const fbcell = el('td');
-    const btns = el('div', 'fb');
-    [['up', '👍', 'More like this'], ['down', '👎', 'Not for me']].forEach(([v, icon, label]) => {
-      const a = el('a', 'fbbtn', icon); a.href = feedbackUrl(j, v); a.target = '_blank'; a.rel = 'noopener noreferrer';
-      a.title = label + ' – opens a comment on GitHub'; a.setAttribute('aria-label', label);
-      btns.append(a);
-    });
-    fbcell.append(btns);
+    const btn = el('button', 'fbbtn', '💬 Comment');
+    btn.type = 'button';
+    btn.setAttribute('aria-expanded', 'false');
+    btn.addEventListener('click', () => toggleComments(tr, j, btn));
+    fbcell.append(btn);
     const mine = state.feedback.filter((f) => f.job_id === j.id).slice(-1)[0];
     if (mine) {
       const up = mine.verdict === 'like';
       fbcell.append(el('div', 'fbnote ' + (up ? 'up' : 'down'), (up ? '👍 ' : '👎 ') + (mine.comment || (up ? 'Liked' : 'Not for me'))));
+      fbcell.append(el('div', 'fbnote', 'Learned ✓'));
       if (!up) tr.classList.add('disliked');
     }
     tr.append(c1, pay, sc, loc, ni, src, dt, ap, fbcell);

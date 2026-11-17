@@ -56,6 +56,15 @@
   a.apply { display: inline-block; background: var(--accent); color: var(--accent-fg); text-decoration: none; font-weight: 600; font-size: 0.85rem; padding: 6px 12px; border-radius: 8px; white-space: nowrap; }
   a.apply:hover { filter: brightness(1.08); }
   footer { color: var(--muted); font-size: 0.8rem; }
+  .fb { display: flex; gap: 6px; }
+  a.fbbtn { display: inline-flex; align-items: center; justify-content: center; min-width: 34px; height: 30px; border: 1px solid var(--line); border-radius: 8px; text-decoration: none; font-size: 0.95rem; background: var(--bg); }
+  a.fbbtn:hover { border-color: var(--accent); }
+  .fbnote { font-size: 0.78rem; color: var(--muted); margin-top: 5px; max-width: 220px; }
+  .fbnote.up { color: var(--ok); } .fbnote.down { color: var(--warn); }
+  tr.disliked td { opacity: 0.55; }
+  .rules { margin: 0; padding-left: 20px; }
+  .rules li { margin: 4px 0; }
+  .rules .why { color: var(--muted); font-size: 0.82rem; }
 </style>
 </head>
 <body>
@@ -99,10 +108,18 @@
           <th data-k="source">Source</th>
           <th data-k="run_date">Found</th>
           <th>Apply</th>
+          <th>Feedback</th>
         </tr></thead>
         <tbody id="rows"></tbody>
       </table>
     </div>
+  </section>
+
+  <section class="card" id="learned">
+    <h2>What the agent has learned from your feedback</h2>
+    <p class="cap">Use 👍 or 👎 on any job to tell the agent what you think. Before each nightly search it reads your comments, turns them into rules like these, and uses them to choose and score jobs. Comments you leave after a run are picked up by the next one.</p>
+    <ul class="rules" id="rules"></ul>
+    <p class="cap" id="fb-pending"></p>
   </section>
 
   <section class="card">
@@ -123,7 +140,31 @@
 
 <script>
 const GOAL = 20;
-const state = { jobs: [], runs: [], sortKey: 'run_date', sortDir: -1 };
+const REPO = 'patanjalibalaaditya/job-hunt-dashboard';
+const state = { jobs: [], runs: [], feedback: [], prefs: { rules: [] }, sortKey: 'run_date', sortDir: -1 };
+
+// Build a prefilled GitHub issue link for feedback on one job.
+function feedbackUrl(j, verdict) {
+  const up = verdict === 'up';
+  const title = (up ? '👍 ' : '👎 ') + (j.company || '?') + ' – ' + (j.role || '?');
+  const body = [
+    'Job ID: ' + j.id,
+    'Verdict: ' + (up ? 'like' : 'dislike'),
+    'Company: ' + (j.company || ''),
+    'Role: ' + (j.role || ''),
+    'Niche: ' + (j.niche || ''),
+    'Location rule: ' + (j.location_rule || ''),
+    'Pay ($/hr): ' + (num(j.pay_usd_hr) === null ? 'not listed' : j.pay_usd_hr),
+    'Link: ' + (j.link || ''),
+    '',
+    '## Your comment',
+    up ? '(What do you like about this one? e.g. "great stack match, want more voice AI startups like this")'
+       : '(Why is this not for you? e.g. "too senior", "hate PHP", "they only hire via agencies", "not really open to India")',
+    '',
+  ].join('\n');
+  const q = new URLSearchParams({ title, body, labels: 'feedback' });
+  return 'https://github.com/' + REPO + '/issues/new?' + q.toString();
+}
 const $ = (s) => document.querySelector(s);
 const num = (v) => (v === null || v === undefined || v === '' || !isFinite(+v)) ? null : +v;
 const fmt = (v, d = 0) => num(v) === null ? '—' : (+v).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -250,7 +291,7 @@ function table() {
   });
   $('#count').textContent = `${fmt(rows.length)} of ${fmt(state.jobs.length)} jobs shown`;
   const tb = $('#rows'); tb.replaceChildren();
-  if (!rows.length) { const tr = el('tr'); const td = el('td', 'empty', state.jobs.length ? 'No jobs match these filters.' : 'No matching jobs yet.'); td.colSpan = 8; tr.append(td); tb.append(tr); return; }
+  if (!rows.length) { const tr = el('tr'); const td = el('td', 'empty', state.jobs.length ? 'No jobs match these filters.' : 'No matching jobs yet.'); td.colSpan = 9; tr.append(td); tb.append(tr); return; }
   rows.forEach((j) => {
     const tr = el('tr');
     const c1 = el('td'); c1.append(el('div', 'role', j.role || '—'), el('div', 'company', j.company || '—'));
@@ -265,7 +306,21 @@ function table() {
     const url = String(j.link || '');
     if (/^https?:\/\//i.test(url)) { const a = el('a', 'apply', 'Apply →'); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; ap.append(a); }
     else ap.textContent = '—';
-    tr.append(c1, pay, sc, loc, ni, src, dt, ap);
+    const fbcell = el('td');
+    const btns = el('div', 'fb');
+    [['up', '👍', 'More like this'], ['down', '👎', 'Not for me']].forEach(([v, icon, label]) => {
+      const a = el('a', 'fbbtn', icon); a.href = feedbackUrl(j, v); a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.title = label + ' – opens a comment on GitHub'; a.setAttribute('aria-label', label);
+      btns.append(a);
+    });
+    fbcell.append(btns);
+    const mine = state.feedback.filter((f) => f.job_id === j.id).slice(-1)[0];
+    if (mine) {
+      const up = mine.verdict === 'like';
+      fbcell.append(el('div', 'fbnote ' + (up ? 'up' : 'down'), (up ? '👍 ' : '👎 ') + (mine.comment || (up ? 'Liked' : 'Not for me'))));
+      if (!up) tr.classList.add('disliked');
+    }
+    tr.append(c1, pay, sc, loc, ni, src, dt, ap, fbcell);
     tb.append(tr);
   });
 }
@@ -278,7 +333,24 @@ document.querySelectorAll('th[data-k]').forEach((th) => th.addEventListener('cli
 ['#q', '#f-niche', '#f-score', '#f-date'].forEach((s) => $(s).addEventListener('input', table));
 let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(nightly, 150); });
 
-Promise.all([load('jobs.json'), load('runs.json')]).then(([jobs, runs]) => {
+function learned() {
+  const ul = $('#rules'); ul.replaceChildren();
+  const rules = (state.prefs && state.prefs.rules) || [];
+  if (!rules.length) { ul.append(el('li', 'muted', 'Nothing learned yet. Leave a 👍 or 👎 comment on a job and the next nightly search will pick it up.')); }
+  rules.forEach((r) => {
+    const li = el('li'); li.append(el('span', '', (r.type === 'avoid' ? '🚫 ' : r.type === 'prefer' ? '⭐ ' : '• ') + r.rule));
+    if (r.from) li.append(el('div', 'why', 'From your feedback: ' + r.from));
+    ul.append(li);
+  });
+  const n = state.feedback.length;
+  $('#fb-pending').textContent = n ? `${n} comment${n === 1 ? '' : 's'} processed so far${state.prefs.updated ? ' · rules last updated ' + state.prefs.updated : ''}.` : '';
+}
+
+const optional = (name, fallback) => load(name).catch(() => fallback);
+Promise.all([load('jobs.json'), load('runs.json'), optional('feedback.json', []), optional('preferences.json', { rules: [] })]).then(([jobs, runs, feedback, prefs]) => {
+  state.feedback = Array.isArray(feedback) ? feedback : [];
+  state.prefs = prefs && typeof prefs === 'object' ? prefs : { rules: [] };
+  learned();
   state.jobs = Array.isArray(jobs) ? jobs : (jobs.rows || []);
   state.runs = Array.isArray(runs) ? runs : (runs.rows || []);
   summary(); table();

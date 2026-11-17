@@ -1,11 +1,11 @@
 [
   {
     "run_date": "2026-11-17",
-    "reviewed": 606,
-    "qualified": 21,
-    "skipped_location": 379,
-    "skipped_pay": 25,
-    "skipped_experience": 102,
-    "skipped_other": 79
+    "reviewed": 821,
+    "qualified": 38,
+    "skipped_location": 448,
+    "skipped_pay": 36,
+    "skipped_experience": 162,
+    "skipped_other": 137
   }
 ]

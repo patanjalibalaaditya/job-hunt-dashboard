@@ -1,4 +1,20 @@
 {
-  "updated": null,
-  "rules": []
+  "updated": "2026-11-17",
+  "rules": [
+    {
+      "type": "avoid",
+      "rule": "Skip roles whose main or primary language is Python (Python/Django-first backends, 'Python Engineer' titles, Python SDK roles), even when everything else fits.",
+      "from": "Dont suggest me jobs w main language as python"
+    },
+    {
+      "type": "prefer",
+      "rule": "Prefer Go/Golang-first backend, platform and real-time roles; score them higher and search Go-specific queries first.",
+      "from": "Dont suggest me jobs w main language as python"
+    },
+    {
+      "type": "note",
+      "rule": "Python is fine as a secondary language in a Go-, TypeScript- or polyglot-led stack; judge by the language the role mainly writes.",
+      "from": "Dont suggest me jobs w main language as python"
+    }
+  ]
 }

@@ -68,6 +68,10 @@
   .cmtactions { display: flex; align-items: center; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
   button.sendbtn { border: 0; cursor: pointer; font: inherit; font-weight: 600; font-size: 0.9rem; background: var(--accent); color: var(--accent-fg); padding: 8px 16px; border-radius: 8px; }
   button.sendbtn:disabled { opacity: .6; cursor: default; }
+  .tokenbox { margin-top: 12px; padding: 12px; border: 1px dashed var(--line); border-radius: 8px; max-width: 760px; }
+  .tokenbox ol { margin: 6px 0 0; padding-left: 20px; }
+  .tokenbox a { color: var(--accent); }
+  .tokeninput { font: inherit; color: var(--fg); background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; flex: 1 1 260px; }
   .fbnote { font-size: 0.78rem; color: var(--muted); margin-top: 5px; max-width: 220px; }
   .fbnote.up { color: var(--ok); } .fbnote.down { color: var(--warn); }
   tr.disliked td { opacity: 0.55; }
@@ -256,21 +260,56 @@ function summary() {
   sel.value = niches.includes(cur) ? cur : '';
 }
 
-// Inline feedback box. Submitting sends it to a small relay (FEEDBACK_URL) that files it as a
-// GitHub issue labeled "feedback". Until the relay is set up, it opens GitHub with the text prefilled.
-const FEEDBACK_URL = '';
-const KEY_STORE = 'jh-feedback-key';
+// Inline feedback box. Submit files a GitHub issue (label "feedback") straight from the browser,
+// using a fine-grained token that is saved only in this browser's local storage, never in the page.
+const TOKEN_STORE = 'jh-gh-token';
 const store = {
   get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-  set(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* storage unavailable */ } },
+  set(k, v) { try { localStorage.setItem(k, v); return true; } catch (e) { return false; } },
   del(k) { try { localStorage.removeItem(k); } catch (e) { /* ignore */ } },
 };
-function issueUrl(j, verdict, text) {
+const TOKEN_NEW_URL = 'https://github.com/settings/personal-access-tokens/new?' + new URLSearchParams({
+  name: 'Job hunt dashboard feedback', description: 'Lets my dashboard file feedback issues in job-hunt-dashboard',
+  target_name: REPO.split('/')[0], expires_in: '366', issues: 'write',
+}).toString();
+async function fileIssue(j, verdict, text) {
+  const token = store.get(TOKEN_STORE);
   const icon = verdict === 'like' ? '👍' : verdict === 'dislike' ? '👎' : '💬';
   const body = ['Job ID: ' + j.id, 'Verdict: ' + verdict, 'Company: ' + (j.company || ''), 'Role: ' + (j.role || ''), 'Link: ' + (j.link || ''), '', '## Your comment', text].join('\n');
-  const q = new URLSearchParams({ title: icon + ' ' + (j.company || '?') + ' – ' + (j.role || '?'), body, labels: 'feedback' });
-  return 'https://github.com/' + REPO + '/issues/new?' + q.toString();
+  const res = await fetch('https://api.github.com/repos/' + REPO + '/issues', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({ title: icon + ' ' + (j.company || '?') + ' – ' + (j.role || '?'), body, labels: ['feedback'] }),
+  });
+  if (res.status === 401 || res.status === 403 || res.status === 404) {
+    store.del(TOKEN_STORE);
+    throw new Error('GitHub refused the key (' + res.status + '). Check it has Issues: Read and write on job-hunt-dashboard, then paste it again.');
+  }
+  if (!res.ok) throw new Error('GitHub error ' + res.status);
+  return res.json();
 }
+function tokenSetup(onSaved) {
+  const box = el('div', 'tokenbox');
+  box.append(el('strong', '', 'One-time setup on this device'));
+  const ol = el('ol');
+  const li1 = el('li'); li1.append('Open ');
+  const a = el('a', '', 'this GitHub page'); a.href = TOKEN_NEW_URL; a.target = '_blank'; a.rel = 'noopener noreferrer';
+  li1.append(a, '. Under Repository access choose "Only select repositories" → job-hunt-dashboard. Make sure Issues is "Read and write". Click Generate token.');
+  ol.append(li1, el('li', '', 'Copy the token and paste it below. It stays only in this browser.'));
+  const inp = el('input', 'tokeninput'); inp.type = 'password'; inp.placeholder = 'github_pat_…'; inp.autocomplete = 'off';
+  const save = el('button', 'apply sendbtn', 'Save key'); save.type = 'button';
+  const msg = el('span', 'cap', '');
+  save.addEventListener('click', () => {
+    const v = inp.value.trim();
+    if (!/^(github_pat_|ghp_)/.test(v)) { msg.textContent = 'That doesn\'t look like a GitHub token.'; return; }
+    if (!store.set(TOKEN_STORE, v)) { msg.textContent = 'This browser blocked saving. Try a normal (non-private) window.'; return; }
+    box.remove(); onSaved();
+  });
+  const row = el('div', 'cmtactions'); row.append(inp, save, msg);
+  box.append(ol, row);
+  return box;
+}
+
 let openPanel = null;
 function toggleComments(tr, j, btn) {
   const wasOpen = openPanel && openPanel.tr === tr;
@@ -293,29 +332,24 @@ function toggleComments(tr, j, btn) {
   actions.append(send, status);
   td.append(seg, ta, actions); row.append(td); tr.after(row);
   ta.focus();
-  send.addEventListener('click', async () => {
+  const doSend = async () => {
     const text = ta.value.trim();
     if (!text) { status.textContent = 'Write something first.'; ta.focus(); return; }
-    if (!FEEDBACK_URL) {
-      window.open(issueUrl(j, verdict, text), '_blank', 'noopener');
-      status.textContent = 'Opened GitHub with your comment. Click "Create" there to send it.';
+    if (!store.get(TOKEN_STORE)) {
+      status.textContent = 'Set up your key once, then your comment is sent.';
+      actions.after(tokenSetup(doSend));
       return;
     }
-    let key = store.get(KEY_STORE);
-    if (!key) { key = (window.prompt('Enter your feedback key (asked once on this device):') || '').trim(); if (!key) return; }
     send.disabled = true; status.textContent = 'Sending…';
     try {
-      const res = await fetch(FEEDBACK_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key, verdict, comment: text, job: { id: j.id, company: j.company, role: j.role, link: j.link } }) });
-      if (res.status === 401) { store.del(KEY_STORE); throw new Error('wrong feedback key, try again'); }
-      if (!res.ok) throw new Error((await res.text()) || ('error ' + res.status));
-      store.set(KEY_STORE, key);
+      const issue = await fileIssue(j, verdict, text);
       ta.value = ''; ta.disabled = true; send.hidden = true;
-      status.textContent = 'Sent ✓ The next nightly search will learn from it.';
+      status.textContent = 'Sent ✓ (feedback #' + issue.number + '). The next nightly search will learn from it.';
     } catch (e) {
       status.textContent = 'Could not send: ' + e.message;
     } finally { send.disabled = false; }
-  });
+  };
+  send.addEventListener('click', doSend);
   btn.setAttribute('aria-expanded', 'true'); btn.textContent = '✕ Close';
   openPanel = { tr, row, btn };
 }

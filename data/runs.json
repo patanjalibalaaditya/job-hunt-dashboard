@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "run_date": "2026-11-17",
+    "reviewed": 19,
+    "qualified": 3,
+    "skipped_location": 7,
+    "skipped_pay": 1,
+    "skipped_experience": 6,
+    "skipped_other": 2
+  }
+]

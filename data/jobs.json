@@ -1,1 +1,41 @@
-[]
+[
+  {
+    "id": "2026-11-17-1",
+    "run_date": "2026-11-17",
+    "company": "Fingerprint",
+    "role": "Backend Engineer, Core APIs",
+    "link": "https://fingerprint.com/careers/jobs/apply/?gh_jid=6206624004",
+    "pay_usd_hr": 66.5,
+    "location_rule": "Anywhere in the world (some countries excluded; must be authorized to work from home country)",
+    "score": 8,
+    "niche": "Backend",
+    "source": "Real Work From Anywhere",
+    "stretch": false
+  },
+  {
+    "id": "2026-11-17-2",
+    "run_date": "2026-11-17",
+    "company": "CloudLinux (TuxCare)",
+    "role": "Python Software Engineer (remote work)",
+    "link": "https://apply.workable.com/j/CFD2CEC915",
+    "pay_usd_hr": null,
+    "location_rule": "Anywhere in the world, fully remote",
+    "score": 7,
+    "niche": "Backend",
+    "source": "Real Work From Anywhere",
+    "stretch": false
+  },
+  {
+    "id": "2026-11-17-3",
+    "run_date": "2026-11-17",
+    "company": "Supabase",
+    "role": "SDK Engineer - Python",
+    "link": "https://jobs.ashbyhq.com/supabase/b65287c7-2071-4bc6-8717-58c090e2a372",
+    "pay_usd_hr": null,
+    "location_rule": "Anywhere in the World (100% worldwide remote)",
+    "score": 7,
+    "niche": "Backend",
+    "source": "Real Work From Anywhere",
+    "stretch": false
+  }
+]

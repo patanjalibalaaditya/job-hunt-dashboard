@@ -492,5 +492,83 @@
     "niche": "Data infrastructure",
     "source": "Real Work From Anywhere",
     "stretch": true
+  },
+  {
+    "id": "2026-11-18-1",
+    "run_date": "2026-11-18",
+    "company": "Sourcegraph",
+    "role": "Software Engineer - Code Understanding [IC2]",
+    "link": "https://job-boards.greenhouse.io/sourcegraph91/jobs/5855148004",
+    "pay_usd_hr": 32,
+    "location_rule": "Remote; hires almost anywhere in the world (prefers North/South America); must overlap EST at least 20 hrs/week",
+    "score": 9,
+    "niche": "Platform/infra",
+    "source": "Sourcegraph careers (Greenhouse)",
+    "stretch": true
+  },
+  {
+    "id": "2026-11-18-2",
+    "run_date": "2026-11-18",
+    "company": "GitLab",
+    "role": "Intermediate Backend Engineer (Golang), Monitor: Platform Insights",
+    "link": "https://job-boards.greenhouse.io/gitlab/jobs/7916259002",
+    "pay_usd_hr": null,
+    "location_rule": "Remote, APAC",
+    "score": 8,
+    "niche": "Data infrastructure",
+    "source": "GitLab careers (Greenhouse)",
+    "stretch": false
+  },
+  {
+    "id": "2026-11-18-3",
+    "run_date": "2026-11-18",
+    "company": "Camunda",
+    "role": "Software Engineer, Infrastructure - Self Managed Experience (SMX)",
+    "link": "https://www.realworkfromanywhere.com/jobs/software-engineer-infrastructure-self-managed-experience-smx-camunda-2668",
+    "pay_usd_hr": null,
+    "location_rule": "Anywhere in the World / 100% worldwide remote; outside listed salary markets hired via Remote.com (EOR)",
+    "score": 7,
+    "niche": "Platform/infra",
+    "source": "Real Work From Anywhere",
+    "stretch": false
+  },
+  {
+    "id": "2026-11-18-4",
+    "run_date": "2026-11-18",
+    "company": "GitLab",
+    "role": "Intermediate Backend (Go) Engineer, Runway",
+    "link": "https://job-boards.greenhouse.io/gitlab/jobs/7913141002",
+    "pay_usd_hr": null,
+    "location_rule": "Remote, APAC; Remote, EMEA",
+    "score": 7,
+    "niche": "Platform/infra",
+    "source": "GitLab careers (Greenhouse)",
+    "stretch": true
+  },
+  {
+    "id": "2026-11-18-5",
+    "run_date": "2026-11-18",
+    "company": "ElevenLabs",
+    "role": "Full-Stack Engineer (Backend Leaning) - Creative Agents",
+    "link": "https://elevenlabs.io/careers/35813150-a851-4821-b732-a037b4e6c4fe/full-stack-engineer-backend-leaning-creative-agents",
+    "pay_usd_hr": null,
+    "location_rule": "Remote; this role can be executed globally",
+    "score": 6,
+    "niche": "Voice/telephony",
+    "source": "ElevenLabs careers",
+    "stretch": false
+  },
+  {
+    "id": "2026-11-18-6",
+    "run_date": "2026-11-18",
+    "company": "ElevenLabs",
+    "role": "Research Engineer - Data Infrastructure",
+    "link": "https://elevenlabs.io/careers/9fbd9227-57e0-4221-9255-1a1d967be8ed/research-engineer-data-infrastructure",
+    "pay_usd_hr": null,
+    "location_rule": "Remote; UK, US, Poland, Bulgaria listed; this role can be executed globally",
+    "score": 6,
+    "niche": "Data infrastructure",
+    "source": "ElevenLabs careers",
+    "stretch": false
   }
 ]

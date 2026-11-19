@@ -16,5 +16,14 @@
     "skipped_pay": 6,
     "skipped_experience": 89,
     "skipped_other": 96
+  },
+  {
+    "run_date": "2026-11-19",
+    "reviewed": 155,
+    "qualified": 2,
+    "skipped_location": 48,
+    "skipped_pay": 8,
+    "skipped_experience": 46,
+    "skipped_other": 51
   }
 ]

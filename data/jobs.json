@@ -570,5 +570,31 @@
     "niche": "Data infrastructure",
     "source": "ElevenLabs careers",
     "stretch": false
+  },
+  {
+    "id": "2026-11-19-1",
+    "run_date": "2026-11-19",
+    "company": "Sticker Mule",
+    "role": "Software engineer",
+    "link": "https://weworkremotely.com/listings/sticker-mule-software-engineer-3",
+    "pay_usd_hr": 75,
+    "location_rule": "Fully remote from 40+ countries (WWR: Anywhere in the World)",
+    "score": 8,
+    "niche": "Backend",
+    "source": "We Work Remotely",
+    "stretch": false
+  },
+  {
+    "id": "2026-11-19-2",
+    "run_date": "2026-11-19",
+    "company": "GitLab",
+    "role": "Intermediate Backend Engineer, Database Automation (Ruby)",
+    "link": "https://job-boards.greenhouse.io/gitlab/jobs/8481029002",
+    "pay_usd_hr": null,
+    "location_rule": "Remote, India",
+    "score": 6,
+    "niche": "Data infrastructure",
+    "source": "GitLab careers (Greenhouse)",
+    "stretch": false
   }
 ]
